@@ -1,11 +1,55 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:jitsi_meet/jitsi_meet.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 void main() => runApp(MyApp());
+
+// Create MeetingRepo class.
+class MeetingRepo {
+  final List<String> rooms = <String>['Bangkok', 'Tokyo', 'London', 'Seattle'];
+
+  // Convert rooms to DropdownMenuItem.
+  List<DropdownMenuItem<String>> getRooms() {
+    List<DropdownMenuItem<String>> items = [];
+    for (String room in rooms) {
+      items.add(DropdownMenuItem(
+        value: room,
+        child: Text(room),
+      ));
+    }
+    return items;
+  }
+
+  // Create a static function to get random subjects.
+  static String getRandomSubject() {
+    final List<String> subjects = <String>[
+      'Planned - Meeting',
+      'Unplanned - Meeting',
+      'Planned - Call',
+      'Unplanned - Call',
+    ];
+    final _random = new Random();
+    return subjects[_random.nextInt(subjects.length)];
+  }
+
+  // Create a static async function to get device name.
+  static Future<String?> getDeviceName() async {
+    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.model;
+    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+      IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.name;
+    }
+    return 'Unknown';
+  }
+}
 
 class MyApp extends StatelessWidget {
   @override
@@ -21,9 +65,13 @@ class Meeting extends StatefulWidget {
 
 class _MeetingState extends State<Meeting> {
   final serverText = TextEditingController();
-  final roomText = TextEditingController(text: "plugintestroom");
-  final subjectText = TextEditingController(text: "My Plugin Test Meeting");
-  final nameText = TextEditingController(text: "Plugin Test User");
+  // final roomText = Controller // TextEditingController(text: "plugintestroom");
+  String selectedRoom = "Bangkok";
+
+  final subjectText =
+      TextEditingController(text: MeetingRepo.getRandomSubject());
+
+  final nameText = TextEditingController(text: "Guest");
   final emailText = TextEditingController(text: "fake@email.com");
   final iosAppBarRGBAColor =
       TextEditingController(text: "#0080FF80"); //transparent blue
@@ -39,6 +87,17 @@ class _MeetingState extends State<Meeting> {
         onConferenceJoined: _onConferenceJoined,
         onConferenceTerminated: _onConferenceTerminated,
         onError: _onError));
+
+    setAsyncState();
+  }
+
+  setAsyncState() async {
+    String? deviceName = "Unknown";
+    deviceName = await MeetingRepo.getDeviceName() ?? "Guest";
+
+    setState(() {
+      nameText.text = "I'am guest - " + deviceName!;
+    });
   }
 
   @override
@@ -52,8 +111,23 @@ class _MeetingState extends State<Meeting> {
     double width = MediaQuery.of(context).size.width;
     return MaterialApp(
       home: Scaffold(
+        // appBar: AppBar(
+        //   title: const Text('Sodality - Conference Showcase'),
+        // ),
         appBar: AppBar(
-          title: const Text('Plugin example app'),
+          title: Text("Sodality - Conference Showcase"),
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: <Color>[
+                    Color.fromARGB(255, 211, 24, 24),
+                    Colors.blue
+                  ],
+                  tileMode: TileMode.decal),
+            ),
+          ),
         ),
         body: Container(
           padding: const EdgeInsets.symmetric(
@@ -100,21 +174,16 @@ class _MeetingState extends State<Meeting> {
           SizedBox(
             height: 16.0,
           ),
-          TextField(
-            controller: serverText,
-            decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: "Server URL",
-                hintText: "Hint: Leave empty for meet.jitsi.si"),
-          ),
-          SizedBox(
-            height: 14.0,
-          ),
-          TextField(
-            controller: roomText,
+
+          DropdownButtonFormField(
+            value: selectedRoom,
+            isExpanded: true,
+            items: MeetingRepo().getRooms(),
+            onChanged: _onRoomChanged,
             decoration: InputDecoration(
               border: OutlineInputBorder(),
-              labelText: "Room",
+              labelText: "Meeting Room",
+              prefixIcon: Icon(Icons.video_call),
             ),
           ),
           SizedBox(
@@ -125,6 +194,7 @@ class _MeetingState extends State<Meeting> {
             decoration: InputDecoration(
               border: OutlineInputBorder(),
               labelText: "Subject",
+              prefixIcon: Icon(Icons.subject),
             ),
           ),
           SizedBox(
@@ -134,34 +204,36 @@ class _MeetingState extends State<Meeting> {
             controller: nameText,
             decoration: InputDecoration(
               border: OutlineInputBorder(),
-              labelText: "Display Name",
+              labelText: "What's your name?",
+              prefixIcon: Icon(Icons.person),
             ),
           ),
-          SizedBox(
-            height: 14.0,
-          ),
-          TextField(
-            controller: emailText,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: "Email",
-            ),
-          ),
-          SizedBox(
-            height: 14.0,
-          ),
-          TextField(
-            controller: iosAppBarRGBAColor,
-            decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: "AppBar Color(IOS only)",
-                hintText: "Hint: This HAS to be in HEX RGBA format"),
-          ),
+          // SizedBox(
+          //   height: 14.0,
+          // ),
+          // TextField(
+          //   controller: emailText,
+          //   decoration: InputDecoration(
+          //     border: OutlineInputBorder(),
+          //     labelText: "Email",
+          //   ),
+          // ),
+          // SizedBox(
+          //   height: 14.0,
+          // ),
+          // TextField(
+          //   controller: iosAppBarRGBAColor,
+          //   decoration: InputDecoration(
+          //       border: OutlineInputBorder(),
+          //       labelText: "AppBar Color(IOS only)",
+          //       hintText: "Hint: This HAS to be in HEX RGBA format"),
+          // ),
           SizedBox(
             height: 14.0,
           ),
           CheckboxListTile(
             title: Text("Audio Only"),
+            secondary: Icon(Icons.audiotrack),
             value: isAudioOnly,
             onChanged: _onAudioOnlyChanged,
           ),
@@ -170,6 +242,7 @@ class _MeetingState extends State<Meeting> {
           ),
           CheckboxListTile(
             title: Text("Audio Muted"),
+            secondary: Icon(Icons.mic_off),
             value: isAudioMuted,
             onChanged: _onAudioMutedChanged,
           ),
@@ -178,6 +251,7 @@ class _MeetingState extends State<Meeting> {
           ),
           CheckboxListTile(
             title: Text("Video Muted"),
+            secondary: const Icon(Icons.videocam_off),
             value: isVideoMuted,
             onChanged: _onVideoMutedChanged,
           ),
@@ -207,6 +281,13 @@ class _MeetingState extends State<Meeting> {
         ],
       ),
     );
+  }
+
+  _onRoomChanged(String? value) {
+    setState(() {
+      // roomText.text = value!;
+      selectedRoom = value!;
+    });
   }
 
   _onAudioOnlyChanged(bool? value) {
@@ -247,7 +328,7 @@ class _MeetingState extends State<Meeting> {
       }
     }
     // Define meetings options here
-    var options = JitsiMeetingOptions(room: roomText.text)
+    var options = JitsiMeetingOptions(room: selectedRoom)
       ..serverURL = serverUrl
       ..subject = subjectText.text
       ..userDisplayName = nameText.text
@@ -258,7 +339,7 @@ class _MeetingState extends State<Meeting> {
       ..videoMuted = isVideoMuted
       ..featureFlags.addAll(featureFlags)
       ..webOptions = {
-        "roomName": roomText.text,
+        "roomName": selectedRoom,
         "width": "100%",
         "height": "100%",
         "enableWelcomePage": false,
